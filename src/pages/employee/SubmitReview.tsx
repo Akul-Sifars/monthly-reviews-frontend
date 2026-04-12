@@ -8,6 +8,7 @@ import { submitReview, checkSubmissionStatus } from '../../api/reviews.api';
 import { Card } from '../../components/ui/Card';
 import { TextArea } from '../../components/ui/TextArea';
 import { Button } from '../../components/ui/Button';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 export const SubmitReview: React.FC = () => {
   const browserId = useBrowserId();
@@ -16,17 +17,17 @@ export const SubmitReview: React.FC = () => {
   const [error, setError] = useState<string>('');
 
   // Query to check submission status
-  const { data: statusData } = useQuery({
+  const { data: statusData, isLoading: statusLoading } = useQuery({
     queryKey: ['submissionStatus', browserId],
     queryFn: () => checkSubmissionStatus(browserId!),
     enabled: !!browserId,
   });
 
   // Query to fetch active questions
-  const { data: questions, isLoading } = useQuery({
+  const { data: questions, isLoading: questionsLoading } = useQuery({
     queryKey: ['activeQuestions'],
     queryFn: () => getActiveQuestions(),
-    enabled: !statusData?.hasSubmitted,
+    enabled: !!browserId && statusData?.hasSubmitted === false,
   });
 
   // Mutation to submit review
@@ -69,14 +70,9 @@ export const SubmitReview: React.FC = () => {
     submitMutation.mutate({ browserId, answers: answersArray });
   };
 
-  if (isLoading || !browserId) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-xl">Loading...</div>
-        </div>
-      </div>
-    );
+  // Wait for browser ID and status check to complete
+  if (!browserId || statusLoading || statusData === undefined) {
+    return <LoadingSpinner size="large" message="Please wait while we check your submission status..." fullScreen />;
   }
 
   if (statusData?.hasSubmitted) {
@@ -104,7 +100,11 @@ export const SubmitReview: React.FC = () => {
             Please share your honest feedback. All responses are completely anonymous.
           </p>
 
-          {!questions || questions.length === 0 ? (
+          {questionsLoading || !questions ? (
+            <div className="text-center py-8">
+              <LoadingSpinner message="Loading questions..." />
+            </div>
+          ) : questions.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
               No active questions available at this time.
             </p>

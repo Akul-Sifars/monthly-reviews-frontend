@@ -8,7 +8,7 @@ export interface Question {
 
 export interface Review {
   id: number;
-  question_id: number;
+  question: Question;
   answer: string;
   review_month: string;
   browser_id: string;
