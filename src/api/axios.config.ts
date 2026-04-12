@@ -18,15 +18,38 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function shouldRedirectToAdminLoginOn401(error: {
+  config?: { url?: string };
+}): boolean {
+  const requestUrl = error.config?.url ?? '';
+  const isAdminApi =
+    requestUrl.includes('/api/admin/') || requestUrl.includes('api/admin/');
+  if (!isAdminApi) {
+    return false;
+  }
+
+  const path = window.location.pathname;
+  if (path === '/admin/login') {
+    return false;
+  }
+  // Logout navigates here; stale admin requests must not hijack with a hard redirect
+  const publicPaths = ['/', '/submit', '/success'];
+  if (publicPaths.includes(path)) {
+    return false;
+  }
+
+  return true;
+}
+
 // Handle response errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear JWT token on unauthorized
       localStorage.removeItem('access_token');
-      // Redirect to login if needed
-      window.location.href = '/admin/login';
+      if (shouldRedirectToAdminLoginOn401(error)) {
+        window.location.href = '/admin/login';
+      }
     }
     return Promise.reject(error);
   }
